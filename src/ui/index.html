@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Solana Agent Wallet</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="/config.js"></script>
+    <script type="module" src="/app.js"></script>
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Local signer control plane</p>
+          <h1>Solana Agent Wallet</h1>
+          <p class="subhead">
+            私钥只在本机进程内解锁。Agent 请求必须经过白名单、每日限额、模拟和审计。
+          </p>
+        </div>
+        <div class="status-card">
+          <span class="status-dot" id="statusDot"></span>
+          <span id="statusText">连接中</span>
+        </div>
+      </section>
+
+      <section class="grid">
+        <article class="panel wallet-panel">
+          <div class="panel-header">
+            <p class="eyebrow">Wallet</p>
+            <button class="ghost" id="refreshButton" type="button">刷新</button>
+          </div>
+          <h2 id="walletPublicKey">-</h2>
+          <div class="metric-row">
+            <div>
+              <span class="metric-label">Passkeys</span>
+              <strong id="passkeyCount">0</strong>
+            </div>
+            <div>
+              <span class="metric-label">Spent Today</span>
+              <strong id="spentToday">0</strong>
+            </div>
+            <div>
+              <span class="metric-label">Panic</span>
+              <strong id="panicState">off</strong>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-header">
+            <p class="eyebrow">Authorization</p>
+            <span class="pill" id="authState">未授权</span>
+          </div>
+          <label class="field">
+            <span>Master Password（首次注册 Passkey 使用）</span>
+            <input id="masterPassword" type="password" autocomplete="current-password" />
+          </label>
+          <div class="button-row">
+            <button id="unlockButton" type="button">主密码解锁</button>
+            <button id="registerPasskeyButton" type="button">注册 Passkey</button>
+            <button id="authPasskeyButton" type="button">Passkey 授权</button>
+          </div>
+          <p class="hint">
+            已有 Passkey 后，修改策略和 Panic Mode 需要先完成指纹/系统验证。
+          </p>
+        </article>
+
+        <article class="panel policy-panel">
+          <div class="panel-header">
+            <p class="eyebrow">Policy Engine</p>
+            <button class="danger" id="panicButton" type="button">切换 Panic Mode</button>
+          </div>
+          <label class="field">
+            <span>每日限额（lamports）</span>
+            <input id="dailyLimit" inputmode="numeric" placeholder="100000000" />
+          </label>
+          <label class="field">
+            <span>程序白名单（每行一个 Program ID）</span>
+            <textarea id="whitelistPrograms" rows="6" spellcheck="false"></textarea>
+          </label>
+          <label class="check">
+            <input id="requireSimulation" type="checkbox" checked />
+            <span>执行前必须模拟交易</span>
+          </label>
+          <div class="button-row">
+            <button id="savePolicyButton" type="button">保存策略</button>
+          </div>
+          <p class="hint">
+            SOL 转账需要将 System Program 加入白名单：
+            <code>11111111111111111111111111111111</code>
+          </p>
+        </article>
+
+        <article class="panel audit-panel">
+          <div class="panel-header">
+            <p class="eyebrow">Audit Logs</p>
+            <span class="pill">最近 20 条</span>
+          </div>
+          <div id="auditLogs" class="audit-list"></div>
+        </article>
+      </section>
+
+      <section class="toast" id="toast" aria-live="polite"></section>
+    </main>
+  </body>
+</html>
