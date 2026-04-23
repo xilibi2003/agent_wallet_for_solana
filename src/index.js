@@ -10,6 +10,7 @@ import { createExecuteService } from './services/executeService.js';
 import { createPasskeyService } from './services/passkeyService.js';
 import { createPolicyService } from './services/policyService.js';
 import { createSessionService } from './services/sessionService.js';
+import { createWalletInfoService } from './services/walletInfoService.js';
 import { unlockOrCreateWallet } from './services/walletService.js';
 
 async function main() {
@@ -18,6 +19,7 @@ async function main() {
   const walletService = await unlockOrCreateWallet(database);
   const sessionService = createSessionService();
   const policyService = createPolicyService(database);
+  const walletInfoService = createWalletInfoService({ config, walletService });
   const auditService = createAuditService(database);
   const passkeyService = createPasskeyService({
     config,
@@ -34,6 +36,7 @@ async function main() {
     config,
     database,
     walletService,
+    walletInfoService,
     sessionService,
     policyService,
     auditService,

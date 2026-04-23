@@ -72,9 +72,9 @@ export async function unlockOrCreateWallet(database) {
       continue;
     }
 
-    const secretKey = decryptBytes(rowToEncryptedRecord(existing), password);
-    const keypair = Keypair.fromSecretKey(secretKey);
-    secretKey.fill(0);
+    const decryptedSecretKey = decryptBytes(rowToEncryptedRecord(existing), password);
+    const keypair = Keypair.fromSecretKey(Uint8Array.from(decryptedSecretKey));
+    decryptedSecretKey.fill(0);
     return createWalletService(database, keypair);
   }
 

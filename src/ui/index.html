@@ -25,17 +25,40 @@
       </section>
 
       <section class="grid">
-        <article class="panel wallet-panel">
+        <article class="panel login-panel" id="loginPanel">
+          <div class="panel-header">
+            <p class="eyebrow">Control Login</p>
+            <span class="pill" id="loginMode">检查中</span>
+          </div>
+          <p class="login-copy" id="loginCopy">
+            正在检查控制页面登录方式。
+          </p>
+          <label class="field" id="masterPasswordField">
+            <span>Master Password（仅首次注册 Passkey 使用）</span>
+            <input id="masterPassword" type="password" autocomplete="current-password" />
+          </label>
+          <div class="button-row">
+            <button id="unlockButton" type="button">主密码解锁</button>
+            <button id="registerPasskeyButton" type="button">注册 Passkey</button>
+            <button id="authPasskeyButton" type="button">Passkey 登录</button>
+          </div>
+          <p class="hint" id="loginHint">
+            第一次使用先用主密钥解锁并注册 Passkey；注册后控制页面只显示 Passkey 登录。
+          </p>
+        </article>
+
+        <article class="panel wallet-panel requires-login">
           <div class="panel-header">
             <p class="eyebrow">Wallet</p>
             <button class="ghost" id="refreshButton" type="button">刷新</button>
           </div>
           <h2 id="walletPublicKey">-</h2>
+          <div class="balance-card">
+            <span class="metric-label">当前余额</span>
+            <strong id="walletBalanceSol">-</strong>
+            <span id="walletBalanceLamports" class="submetric">余额加载中</span>
+          </div>
           <div class="metric-row">
-            <div>
-              <span class="metric-label">Passkeys</span>
-              <strong id="passkeyCount">0</strong>
-            </div>
             <div>
               <span class="metric-label">Spent Today</span>
               <strong id="spentToday">0</strong>
@@ -47,30 +70,28 @@
           </div>
         </article>
 
-        <article class="panel">
+        <article class="panel authorization-panel requires-login">
           <div class="panel-header">
             <p class="eyebrow">Authorization</p>
             <span class="pill" id="authState">未授权</span>
           </div>
-          <label class="field">
-            <span>Master Password（首次注册 Passkey 使用）</span>
-            <input id="masterPassword" type="password" autocomplete="current-password" />
-          </label>
-          <div class="button-row">
-            <button id="unlockButton" type="button">主密码解锁</button>
-            <button id="registerPasskeyButton" type="button">注册 Passkey</button>
-            <button id="authPasskeyButton" type="button">Passkey 授权</button>
+          <div class="metric-row">
+            <div>
+              <span class="metric-label">Passkeys</span>
+              <strong id="passkeyCount">0</strong>
+            </div>
           </div>
           <p class="hint">
-            已有 Passkey 后，修改策略和 Panic Mode 需要先完成指纹/系统验证。
+            Passkey 登录后可查看钱包、审计记录并修改策略。会话过期后需重新完成系统验证。
           </p>
         </article>
 
-        <article class="panel policy-panel">
+        <article class="panel policy-panel requires-login">
           <div class="panel-header">
             <p class="eyebrow">Policy Engine</p>
             <button class="danger" id="panicButton" type="button">切换 Panic Mode</button>
           </div>
+          <div class="policy-summary" id="policySummary"></div>
           <label class="field">
             <span>每日限额（lamports）</span>
             <input id="dailyLimit" inputmode="numeric" placeholder="100000000" />
@@ -92,7 +113,7 @@
           </p>
         </article>
 
-        <article class="panel audit-panel">
+        <article class="panel audit-panel requires-login">
           <div class="panel-header">
             <p class="eyebrow">Audit Logs</p>
             <span class="pill">最近 20 条</span>

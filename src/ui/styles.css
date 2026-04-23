@@ -152,6 +152,22 @@ code {
   grid-column: span 1;
 }
 
+[hidden] {
+  display: none !important;
+}
+
+.login-panel {
+  grid-column: 1 / -1;
+}
+
+.login-copy {
+  max-width: 680px;
+  margin: 0 0 18px;
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
 .panel-header {
   display: flex;
   align-items: center;
@@ -174,6 +190,33 @@ code {
   gap: 12px;
 }
 
+.balance-card {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 18px;
+  border: 1px solid rgba(23, 109, 77, 0.24);
+  border-radius: 24px;
+  background:
+    linear-gradient(135deg, rgba(23, 109, 77, 0.18), rgba(255, 255, 255, 0.36)),
+    rgba(255, 255, 255, 0.34);
+}
+
+.balance-card strong {
+  font-family: "Didot", "Bodoni 72", "Georgia", serif;
+  font-size: clamp(2.1rem, 5vw, 4rem);
+  font-weight: 700;
+  letter-spacing: -0.06em;
+  line-height: 0.95;
+}
+
+.submetric {
+  color: var(--muted);
+  font-family: "IBM Plex Mono", "SF Mono", monospace;
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
 .metric-row > div {
   padding: 14px;
   border: 1px solid var(--line);
@@ -186,6 +229,29 @@ code {
   margin-bottom: 8px;
   color: var(--muted);
   font-size: 0.78rem;
+}
+
+.policy-summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.policy-summary > div {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.38);
+}
+
+.policy-summary strong {
+  display: block;
+  color: var(--ink);
+  font-family: "IBM Plex Mono", "SF Mono", monospace;
+  font-size: 0.84rem;
+  overflow-wrap: anywhere;
 }
 
 .field {
@@ -376,6 +442,10 @@ code {
   }
 
   .metric-row {
+    grid-template-columns: 1fr;
+  }
+
+  .policy-summary {
     grid-template-columns: 1fr;
   }
 

@@ -1,19 +1,55 @@
 const config = window.__SAW_CONFIG__ ?? { apiBaseUrl: 'http://localhost:3001' };
 
 const state = {
-  bootstrapToken: localStorage.getItem('saw.bootstrapToken'),
-  policyToken: localStorage.getItem('saw.policyToken'),
+  bootstrapToken: null,
+  policyToken: null,
   status: null,
+  authStatus: {
+    hasPasskeys: false,
+    passkeyCount: 0,
+  },
 };
+
+localStorage.removeItem('saw.bootstrapToken');
+localStorage.removeItem('saw.policyToken');
+
+function clearBootstrapToken() {
+  state.bootstrapToken = null;
+}
+
+function clearPolicyToken() {
+  state.policyToken = null;
+}
+
+function clearAuthTokens() {
+  clearBootstrapToken();
+  clearPolicyToken();
+}
+
+function createApiError(response, payload) {
+  const error = new Error(payload.error ?? `HTTP ${response.status}`);
+  error.status = response.status;
+  error.code = payload.code ?? null;
+  return error;
+}
 
 const nodes = {
   statusDot: document.querySelector('#statusDot'),
   statusText: document.querySelector('#statusText'),
+  loginPanel: document.querySelector('#loginPanel'),
+  loginMode: document.querySelector('#loginMode'),
+  loginCopy: document.querySelector('#loginCopy'),
+  loginHint: document.querySelector('#loginHint'),
+  masterPasswordField: document.querySelector('#masterPasswordField'),
+  protectedPanels: document.querySelectorAll('.requires-login'),
   authState: document.querySelector('#authState'),
   walletPublicKey: document.querySelector('#walletPublicKey'),
+  walletBalanceSol: document.querySelector('#walletBalanceSol'),
+  walletBalanceLamports: document.querySelector('#walletBalanceLamports'),
   passkeyCount: document.querySelector('#passkeyCount'),
   spentToday: document.querySelector('#spentToday'),
   panicState: document.querySelector('#panicState'),
+  policySummary: document.querySelector('#policySummary'),
   dailyLimit: document.querySelector('#dailyLimit'),
   whitelistPrograms: document.querySelector('#whitelistPrograms'),
   requireSimulation: document.querySelector('#requireSimulation'),
@@ -37,18 +73,23 @@ function showToast(message) {
 }
 
 async function api(path, { method = 'GET', body, token } = {}) {
+  const headers = {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+
+  if (body !== undefined) {
+    headers['Content-Type'] = 'application/json';
+  }
+
   const response = await fetch(`${config.apiBaseUrl}${path}`, {
     method,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
+    headers,
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(payload.error ?? `HTTP ${response.status}`);
+    throw createApiError(response, payload);
   }
   return payload;
 }
@@ -58,8 +99,88 @@ function setOnline(online, text) {
   nodes.statusText.textContent = text;
 }
 
+function isLoggedIn() {
+  return Boolean(state.policyToken || (!state.authStatus.hasPasskeys && state.bootstrapToken));
+}
+
+function currentLoginToken() {
+  if (state.authStatus.hasPasskeys) return state.policyToken;
+  return state.bootstrapToken;
+}
+
+function renderAuthShell() {
+  const hasPasskeys = state.authStatus.hasPasskeys;
+  const loggedIn = isLoggedIn();
+  nodes.loginPanel.hidden = loggedIn;
+
+  for (const panel of nodes.protectedPanels) {
+    panel.hidden = !loggedIn;
+  }
+
+  nodes.masterPasswordField.hidden = hasPasskeys;
+  nodes.unlockButton.hidden = hasPasskeys;
+  nodes.registerPasskeyButton.hidden = hasPasskeys;
+  nodes.authPasskeyButton.hidden = !hasPasskeys;
+  nodes.registerPasskeyButton.disabled = !state.bootstrapToken;
+
+  nodes.loginMode.textContent = hasPasskeys ? 'Passkey 登录' : '首次设置';
+  nodes.loginCopy.textContent = hasPasskeys
+    ? '请使用已注册的 Passkey 登录控制页面。'
+    : '第一次使用需要先用 Master Password 解锁，然后注册 Passkey。';
+  nodes.loginHint.textContent = hasPasskeys
+    ? '注册过 Passkey 后，控制页面不再使用主密钥登录。'
+    : '注册完成后，后续访问控制页面将只显示 Passkey 登录。';
+}
+
 function formatLamports(value) {
   return `${value} lamports`;
+}
+
+function formatSol(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return '- SOL';
+  return `${numeric.toLocaleString(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 9,
+  })} SOL`;
+}
+
+function renderWalletBalance(status) {
+  if (!status.walletBalance) {
+    nodes.walletBalanceSol.textContent = '- SOL';
+    nodes.walletBalanceLamports.textContent = status.walletBalanceError
+      ? `余额读取失败：${status.walletBalanceError}`
+      : '余额暂不可用';
+    return;
+  }
+
+  nodes.walletBalanceSol.textContent = formatSol(status.walletBalance.sol);
+  nodes.walletBalanceLamports.textContent = `${formatLamports(status.walletBalance.lamports)} · ${status.walletBalance.commitment}`;
+}
+
+function renderPolicySummary(policy) {
+  const whitelistCount = policy.whitelistPrograms.length;
+  const whitelistText =
+    whitelistCount === 0
+      ? '未配置程序白名单'
+      : `${whitelistCount} 个白名单程序`;
+
+  nodes.policySummary.innerHTML = [
+    ['每日限额', formatLamports(policy.dailyLimitLamports)],
+    ['今日已用', formatLamports(policy.spentTodayLamports)],
+    ['模拟检查', policy.requireSimulation ? '开启' : '关闭'],
+    ['Panic Mode', policy.panicMode ? '开启' : '关闭'],
+    ['程序白名单', whitelistText],
+  ]
+    .map(
+      ([label, value]) => `
+        <div>
+          <span class="metric-label">${escapeHtml(label)}</span>
+          <strong>${escapeHtml(value)}</strong>
+        </div>
+      `,
+    )
+    .join('');
 }
 
 function renderAudit(logs) {
@@ -95,33 +216,79 @@ function escapeHtml(value) {
 
 function renderStatus(status) {
   state.status = status;
+  state.authStatus = {
+    hasPasskeys: status.hasPasskeys,
+    passkeyCount: status.passkeyCount,
+  };
   nodes.walletPublicKey.textContent = status.walletPublicKey;
+  renderWalletBalance(status);
   nodes.passkeyCount.textContent = String(status.passkeyCount);
   nodes.spentToday.textContent = formatLamports(status.policy.spentTodayLamports);
   nodes.panicState.textContent = status.policy.panicMode ? 'on' : 'off';
+  renderPolicySummary(status.policy);
   nodes.dailyLimit.value = status.policy.dailyLimitLamports;
   nodes.whitelistPrograms.value = status.policy.whitelistPrograms.join('\n');
   nodes.requireSimulation.checked = status.policy.requireSimulation;
   nodes.authState.textContent = state.policyToken
-    ? 'Passkey 已授权'
+    ? 'Passkey 已登录'
     : state.bootstrapToken
-      ? '主密码会话'
+      ? '首次设置会话'
       : '未授权';
   nodes.registerPasskeyButton.disabled = !state.bootstrapToken;
-  nodes.savePolicyButton.disabled = status.hasPasskeys ? !state.policyToken : !state.bootstrapToken;
-  nodes.panicButton.disabled = status.hasPasskeys ? !state.policyToken : !state.bootstrapToken;
+  nodes.savePolicyButton.disabled = !isLoggedIn();
+  nodes.panicButton.disabled = !isLoggedIn();
   renderAudit(status.auditLogs);
+  renderAuthShell();
+}
+
+async function refreshAuthStatus() {
+  const authStatus = await api('/v1/admin/auth/status');
+  state.authStatus = authStatus;
+  if (authStatus.hasPasskeys) {
+    clearBootstrapToken();
+  }
+  renderAuthShell();
+  return authStatus;
 }
 
 async function refreshStatus() {
   try {
-    const status = await api('/v1/admin/status');
+    await refreshAuthStatus();
+    const token = currentLoginToken();
+    if (!token) {
+      state.status = null;
+      renderAuthShell();
+      setOnline(true, '等待登录');
+      return;
+    }
+
+    const status = await api('/v1/admin/status', { token });
     renderStatus(status);
     setOnline(true, '在线');
   } catch (error) {
+    if (await handleAuthError(error)) return;
     setOnline(false, '离线');
     showToast(error.message);
   }
+}
+
+async function handleAuthError(error) {
+  const messages = new Set([
+    'Bootstrap session required',
+    'bootstrap_session_required',
+    'policy_authorization_required',
+    'Policy authorization required',
+  ]);
+
+  if (error.status === 401 || messages.has(error.message) || messages.has(error.code)) {
+    clearAuthTokens();
+    await refreshAuthStatus();
+    setOnline(true, '等待登录');
+    showToast('登录会话已失效，请重新完成 Passkey 验证');
+    return true;
+  }
+
+  return false;
 }
 
 function base64UrlToBuffer(value) {
@@ -211,9 +378,10 @@ async function createBootstrapSession() {
     body: { masterPassword },
   });
   state.bootstrapToken = result.token;
-  localStorage.setItem('saw.bootstrapToken', result.token);
+  clearPolicyToken();
   nodes.masterPassword.value = '';
-  showToast(result.requiresPasskey ? '主密码验证成功，请使用 Passkey 授权策略操作' : '主密码验证成功，可注册 Passkey');
+  state.authStatus.hasPasskeys = result.requiresPasskey;
+  showToast(result.requiresPasskey ? '已注册 Passkey，请使用 Passkey 登录' : '主密码验证成功，请注册 Passkey');
   await refreshStatus();
 }
 
@@ -223,26 +391,32 @@ async function registerPasskey() {
     return;
   }
 
-  const challenge = await api('/v1/admin/passkeys/register/options', {
-    method: 'POST',
-    token: state.bootstrapToken,
-  });
-  const credential = await navigator.credentials.create({
-    publicKey: registrationOptionsFromJSON(challenge.options),
-  });
-  if (!credential) throw new Error('Passkey registration cancelled');
+  try {
+    const challenge = await api('/v1/admin/passkeys/register/options', {
+      method: 'POST',
+      token: state.bootstrapToken,
+    });
+    const credential = await navigator.credentials.create({
+      publicKey: registrationOptionsFromJSON(challenge.options),
+    });
+    if (!credential) throw new Error('Passkey registration cancelled');
 
-  await api('/v1/admin/passkeys/register/verify', {
-    method: 'POST',
-    token: state.bootstrapToken,
-    body: {
-      challengeToken: challenge.challengeToken,
-      credential: registrationCredentialToJSON(credential),
-    },
-  });
+    await api('/v1/admin/passkeys/register/verify', {
+      method: 'POST',
+      token: state.bootstrapToken,
+      body: {
+        challengeToken: challenge.challengeToken,
+        credential: registrationCredentialToJSON(credential),
+      },
+    });
+  } catch (error) {
+    if (await handleAuthError(error)) return;
+    throw error;
+  }
 
   showToast('Passkey 注册完成');
-  await refreshStatus();
+  clearBootstrapToken();
+  await authenticatePasskey();
 }
 
 async function authenticatePasskey() {
@@ -263,13 +437,13 @@ async function authenticatePasskey() {
   });
 
   state.policyToken = result.token;
-  localStorage.setItem('saw.policyToken', result.token);
-  showToast('Passkey 授权成功');
+  clearBootstrapToken();
+  showToast('Passkey 登录成功');
   await refreshStatus();
 }
 
 function managementToken() {
-  return state.status?.hasPasskeys ? state.policyToken : state.bootstrapToken;
+  return currentLoginToken();
 }
 
 async function savePolicy() {
