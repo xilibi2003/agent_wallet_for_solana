@@ -24,9 +24,9 @@ const challengeVerifySchema = z.object({
   credential: z.any(),
 });
 
-function unauthorized(reply, message = 'Unauthorized') {
+function unauthorized(reply, message = 'Unauthorized', code = 'unauthorized') {
   reply.code(401);
-  return { error: message };
+  return { error: message, code };
 }
 
 export async function registerAdminRoutes(app, services) {
@@ -57,8 +57,16 @@ export async function registerAdminRoutes(app, services) {
     try {
       services.adminAuthService.assertBootstrapSession(token);
       return await services.passkeyService.createRegistrationChallenge();
-    } catch {
-      return unauthorized(reply, 'Bootstrap session required');
+    } catch (error) {
+      if (error.message === 'bootstrap_session_required') {
+        return unauthorized(
+          reply,
+          'Bootstrap session required',
+          'bootstrap_session_required',
+        );
+      }
+      reply.code(400);
+      return { error: error.message, code: 'passkey_registration_options_failed' };
     }
   });
 
@@ -83,8 +91,15 @@ export async function registerAdminRoutes(app, services) {
         passkeyCount: services.passkeyService.listPasskeys().length,
       };
     } catch (error) {
+      if (error.message === 'bootstrap_session_required') {
+        return unauthorized(
+          reply,
+          'Bootstrap session required',
+          'bootstrap_session_required',
+        );
+      }
       reply.code(400);
-      return { error: error.message };
+      return { error: error.message, code: 'passkey_registration_failed' };
     }
   });
 
@@ -137,8 +152,22 @@ export async function registerAdminRoutes(app, services) {
       const policy = services.policyService.updatePolicy(parsed.data);
       return { policy: serializePolicy(policy) };
     } catch (error) {
+      if (error.message === 'policy_authorization_required') {
+        return unauthorized(
+          reply,
+          'Policy authorization required',
+          'policy_authorization_required',
+        );
+      }
+      if (error.message === 'bootstrap_session_required') {
+        return unauthorized(
+          reply,
+          'Bootstrap session required',
+          'bootstrap_session_required',
+        );
+      }
       reply.code(401);
-      return { error: error.message };
+      return { error: error.message, code: 'policy_update_failed' };
     }
   });
 
@@ -154,8 +183,22 @@ export async function registerAdminRoutes(app, services) {
       });
       return { policy: serializePolicy(policy) };
     } catch (error) {
+      if (error.message === 'policy_authorization_required') {
+        return unauthorized(
+          reply,
+          'Policy authorization required',
+          'policy_authorization_required',
+        );
+      }
+      if (error.message === 'bootstrap_session_required') {
+        return unauthorized(
+          reply,
+          'Bootstrap session required',
+          'bootstrap_session_required',
+        );
+      }
       reply.code(401);
-      return { error: error.message };
+      return { error: error.message, code: 'panic_toggle_failed' };
     }
   });
 }
