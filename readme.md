@@ -83,6 +83,51 @@ curl -X POST http://localhost:3001/v1/execute \
   }'
 ```
 
+## Codex Skill：SOL 转账
+
+仓库内提供了一个可安装的 Codex skill：
+
+```text
+skills/sol-transfer/
+```
+
+用途：当用户要求 Agent 通过本地 Solana Agent Wallet 发送 SOL 时，指导 Agent 使用 HTTP 接口 `POST /v1/execute`，并在发送前确认收款地址、金额、RPC/cluster 和转账意图。
+
+安装到本机 Codex skills 目录：
+
+```bash
+mkdir -p ~/.codex/skills
+cp -R skills/sol-transfer ~/.codex/skills/
+```
+
+之后可以用类似提示触发：
+
+```text
+使用 sol-transfer skill，通过本地 Agent Wallet 给 RECIPIENT_PUBLIC_KEY 转 0.001 SOL，intent 是测试付款。
+```
+
+该 skill 会要求先展示转账摘要并取得明确确认，不会请求私钥或助记词。真正签名仍由本地 `npm start` 启动的 signer 完成，交易仍受 Dashboard 中的 Panic Mode、每日限额、System Program 白名单和模拟检查约束。
+
+也可以不安装 skill，直接运行随 skill 附带的脚本调用 HTTP 接口：
+
+```bash
+node skills/sol-transfer/scripts/sol_transfer.mjs \
+  --recipient RECIPIENT_PUBLIC_KEY \
+  --sol 0.001 \
+  --intent "test payment"
+```
+
+如果要显式传 lamports：
+
+```bash
+node skills/sol-transfer/scripts/sol_transfer.mjs \
+  --recipient RECIPIENT_PUBLIC_KEY \
+  --lamports 1000000 \
+  --intent "test payment"
+```
+
+脚本默认调用 `http://localhost:3001`，可用 `SAW_API_BASE_URL` 或 `--api-base-url` 覆盖。
+
 ### Agent 执行原始交易
 
 ```bash
