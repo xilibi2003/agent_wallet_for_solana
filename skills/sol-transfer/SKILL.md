@@ -1,11 +1,21 @@
 ---
 name: sol-transfer
-description: Use when the user asks an agent to send or transfer SOL through this repository's local Solana Agent Wallet HTTP API. Guides safe SOL transfers using POST /v1/execute with recipient public key and lamports.
+description: Use whenever the user asks to send SOL, transfer SOL, send a transaction, 发起交易, 发送交易, or 转账 from this repository's local Solana Agent Wallet. Always execute approved SOL transfers by running skills/sol-transfer/scripts/sol_transfer.mjs; that script POSTs to the local /v1/execute HTTP API with recipient public key and lamports.
 ---
 
 # SOL Transfer via Agent Wallet
 
 Use this skill only for SOL transfers through the local Solana Agent Wallet signer API.
+
+## Script-Only Send Path
+
+- For SOL transfer requests, submit transactions by running:
+  `node skills/sol-transfer/scripts/sol_transfer.mjs`.
+- `sol_transfer.mjs` is the only send path. It converts `--sol` to lamports when needed and POSTs to the local Agent Wallet endpoint:
+  `POST http://localhost:3001/v1/execute`.
+- Do not use `solana transfer`, `solana confirm`, direct `@solana/web3.js` broadcast, or any direct RPC send path to execute the transfer.
+- Assume `npm start` owns wallet unlock, signing, simulation, policy checks, and broadcasting. If the API is unavailable, report that `npm start` must be running and do not fall back to another sender.
+- Do not hand-write a separate `curl` request for normal execution. Use `curl` only for health/debug checks, not for sending funds.
 
 ## Safety Rules
 
@@ -37,7 +47,7 @@ Successful responses include `ok`, `signature`, `spendLamports`, `programIDs`, a
 1. Collect recipient, amount, and intent.
 2. Convert SOL to lamports if needed.
 3. Show the exact transfer summary and wait for explicit approval.
-4. Run `scripts/sol_transfer.mjs` from this skill directory or issue the equivalent HTTP request.
+4. Run `skills/sol-transfer/scripts/sol_transfer.mjs` exactly once for the approved transfer.
 5. Report the transaction signature, spend lamports, program IDs, and simulation result.
 
 ## Script Usage
@@ -49,11 +59,13 @@ node skills/sol-transfer/scripts/sol_transfer.mjs \
   --intent "pay 0.001 SOL to approved recipient"
 ```
 
-Use `--sol 0.001` instead of `--lamports` when the user provides an amount in SOL.
+Use `--sol` when the user provides an amount in SOL:
 
 ```bash
-SAW_API_BASE_URL=http://localhost:3001 node skills/sol-transfer/scripts/sol_transfer.mjs \
+node skills/sol-transfer/scripts/sol_transfer.mjs \
   --recipient RECIPIENT_PUBLIC_KEY \
   --sol 0.001 \
   --intent "pay 0.001 SOL to approved recipient"
 ```
+
+Use `SAW_API_BASE_URL` or `--api-base-url` only when the user or environment explicitly points to another local Agent Wallet base URL.

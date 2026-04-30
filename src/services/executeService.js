@@ -173,10 +173,13 @@ export function createExecuteService({
   }
 
   async function simulateAndMeasure(transaction, walletPublicKey) {
-    const simulation = await connection.simulateTransaction(transaction, {
-      sigVerify: false,
-      replaceRecentBlockhash: true,
-    });
+    const simulation =
+      transaction instanceof VersionedTransaction
+        ? await connection.simulateTransaction(transaction, {
+            sigVerify: false,
+            replaceRecentBlockhash: true,
+          })
+        : await connection.simulateTransaction(transaction);
 
     if (simulation.value.err) {
       throw new Error(`simulation_failed:${JSON.stringify(simulation.value.err)}`);
